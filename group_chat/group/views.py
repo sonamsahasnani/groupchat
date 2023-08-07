@@ -1,4 +1,5 @@
 from django.shortcuts import render
+import json
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -35,31 +36,24 @@ class GroupAddMembersAPIView(APIView):
     def patch(self, request, *args, **kwargs):
         user=request.user
         request.data['created_by'] = str(user.id)
-        data={
-            "data": "data successful"
-        }
         group_object = self.get_object(self.kwargs['pk'])
-        members=request.data.get('members',[])
-        if len(members)>0:
-            for member_id in members:
-                print(member_id)
-                user1=User.objects.get(id=member_id)
-                group_object.members.add(user1)
-                group_object.save()
-        return Response(data, status=status.HTTP_201_CREATED)
+        serializer = GroupAddMemberSerializer(group_object,data=request.data)
+        if serializer.is_valid():
+            s=serializer.save()
+            data={
+                "group_members": s.members.all().values_list('username',flat=True)
+            }
+            return Response(data, status=status.HTTP_202_ACCEPTED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
     def get(self, request, *args, **kwargs):
         user=request.user
         request.data['created_by'] = str(user.id)
-        data={
-            "data": "data successful"
-        }
         group_object = self.get_object(self.kwargs['pk'])
-        serializer = GroupAddMemberSerializer(group_object,data=request.data)
-        if serializer.is_valid():
-            print(serializer.validated_data
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors,status=status.HTTP_404_NOT_FOUND)
+        data={
+                "group_members": group_object.members.all().values_list('username',flat=True)
+            }
+        return Response(data, status=status.HTTP_200_OK)
 
 class GroupSearchMembersAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
